@@ -7,7 +7,7 @@ with open('README.md', 'r') as handle:
 setup(
     name='gtt_drivers',
     version=gtt.__version__,
-    description='A driver package for the Matrix Orbital\'s GTT series of displays',
+    description='A driver package for Matrix Orbital\'s GTT series of displays',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='Yook74',
