@@ -4,7 +4,7 @@ from serial import Serial
 
 from gtt.enums import *
 from gtt.byte_formatting import *
-from gtt.exceptions import UnexpectedResponse, StatusError
+from gtt.exceptions import UnexpectedResponse, StatusError, OutOfIdsError
 
 ID_MAX = 0xff
 
@@ -18,10 +18,18 @@ class GttDisplay:
         :param height: the height of the display in pixels
         """
         self._conn = Serial(port, baudrate=115200, rtscts=True, timeout=0.5)
-        self.width = width
-        self.height = height
-        self.ids_in_use: Set[int] = set()
+        self.width: int = width
+        """The height of this display in pixels"""
+
+        self.height: int = height
+        """The height of this display in pixels"""
+
         self._id_map: Dict[str, int] = {}
+        self.ids_in_use: Set[int] = set()
+        """This stores all the integer IDs of the components created by this GttDisplay instance.
+        If you use a mix of string and integer IDs to refer to your components, 
+        you may want to check whether new integer IDs exist in this set before using them.
+        """
 
     def _validate_x(self, *x_values: int):
         for x_value in x_values:
@@ -139,8 +147,7 @@ class GttDisplay:
         self.update_bar_value(bar_id, value)
 
     def update_bar_value(self, bar_id: IdType, value: int):
-        """Sets the value of the bar given by bar_id to value which should be between it's min and max values
-        """
+        """Sets the value of the bar given by bar_id to value which should be between it's min and max values"""
         bar_id = self._resolve_id(bar_id)
 
         self._conn.write(

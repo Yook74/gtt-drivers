@@ -3,3 +3,4 @@ build
 dist
 venv
 gtt_drivers.egg-info
+docs/build
