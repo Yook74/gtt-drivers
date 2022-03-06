@@ -1,8 +1,14 @@
+from typing import Dict, Set, Union
+
 from serial import Serial
 
 from gtt.enums import *
 from gtt.byte_formatting import *
 from gtt.exceptions import UnexpectedResponse, StatusError
+
+ID_MAX = 0xff
+
+IdType = Union[int, str]
 
 
 class GttDisplay:
@@ -14,6 +20,8 @@ class GttDisplay:
         self._conn = Serial(port, baudrate=115200, rtscts=True, timeout=0.5)
         self.width = width
         self.height = height
+        self.ids_in_use: Set[int] = set()
+        self._id_map: Dict[str, int] = {}
 
     def _validate_x(self, *x_values: int):
         for x_value in x_values:
@@ -30,6 +38,37 @@ class GttDisplay:
 
             if y_value >= self.height:
                 raise ValueError('These arguments would result in an y value which is past the bottom of the screen')
+
+    def _resolve_id(self, unresolved_id: IdType, new=False) -> int:
+        """Takes a string specified by the user, validates it, and converts it to an integer if necessary
+
+        :param unresolved_id: A unique string or integer used to refer to a component
+        :param new: Is the given unresolved_id for a new component? Leave False if it is for an existing component.
+        :return: a unique integer ID used to refer to a component
+        """
+        if new:
+            if unresolved_id in self._id_map or unresolved_id in self.ids_in_use:
+                raise ValueError(f'The ID you specified ({unresolved_id}) for a new component is already in use')
+
+            elif isinstance(unresolved_id, str):
+                for integer in range(ID_MAX, 0, -1):
+                    if integer not in self.ids_in_use:
+
+                        self.ids_in_use.add(integer)
+                        self._id_map[unresolved_id] = integer
+                        return integer
+            else:
+                self.ids_in_use.add(unresolved_id)
+                return unresolved_id
+        else:
+            if unresolved_id not in self._id_map and unresolved_id not in self.ids_in_use:
+                raise ValueError(f'The ID you specified ({unresolved_id}) does not refer to any existing component')
+
+            elif isinstance(unresolved_id, str):
+                return self._id_map[unresolved_id]
+
+            else:
+                return unresolved_id
 
     def _receive_status_response(self, *header_ints: int):
         """For some commands, the GTT will respond with a few header bytes followed by a length short
@@ -66,12 +105,14 @@ class GttDisplay:
         if any(code != 0xfe for code in status_codes):
             raise StatusError(*status_codes)
 
-    def create_plain_bar(self, bar_id: int, value: int, max_value: int, x_pos: int, y_pos: int, width: int, height: int,
+    def create_plain_bar(self, bar_id: IdType, value: int, max_value: int,
+                         x_pos: int, y_pos: int, width: int, height: int,
                          min_value: int = 0, fg_color_hex='FFFFFF', bg_color_hex='000000',
                          direction: BarDirection = BarDirection.BOTTOM_TO_TOP):
         """Creates a bar graph which is really just a single bar.
 
-        :param bar_id: This will be the unique ID used to refer to the bar in other methods
+        :param bar_id: This will be the unique ID used to refer to the bar in other methods.
+            If a string is supplied, it will be mapped to an integer and the mapping will be stored in the instance.
         :param value: the initial value of the bar graph. Should be between min_value and max_value inclusive
         :param max_value: the maximum value which can be shown on the bar graph.
         :param x_pos: the distance from the left edge of the screen in pixels
@@ -85,6 +126,8 @@ class GttDisplay:
         """
         self._validate_x(x_pos, x_pos + width)
         self._validate_y(y_pos, y_pos + height)
+        bar_id = self._resolve_id(bar_id, new=True)
+
         self._conn.write(
             bytes.fromhex('FE 67') +
             bar_id.to_bytes(1, 'big') +
@@ -95,9 +138,11 @@ class GttDisplay:
 
         self.update_bar_value(bar_id, value)
 
-    def update_bar_value(self, bar_id: int, value: int):
+    def update_bar_value(self, bar_id: IdType, value: int):
         """Sets the value of the bar given by bar_id to value which should be between it's min and max values
         """
+        bar_id = self._resolve_id(bar_id)
+
         self._conn.write(
             bytes.fromhex('FE 69') +
             bar_id.to_bytes(1, 'big') +
