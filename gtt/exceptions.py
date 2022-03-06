@@ -40,3 +40,7 @@ class StatusError(Exception):
 
 class UnexpectedResponse(Exception):
     """Raised when a response to a command is not what was expected"""
+
+
+class OutOfIdsError(Exception):
+    """Raised when there are too many existing components to assign a new ID"""

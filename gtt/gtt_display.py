@@ -65,6 +65,8 @@ class GttDisplay:
                         self.ids_in_use.add(integer)
                         self._id_map[unresolved_id] = integer
                         return integer
+                raise OutOfIdsError('Cannot assign a new integer ID because all possible IDs are in use')
+
             else:
                 self.ids_in_use.add(unresolved_id)
                 return unresolved_id
