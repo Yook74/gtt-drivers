@@ -54,6 +54,9 @@ class GttDisplay:
         :param new: Is the given unresolved_id for a new component? Leave False if it is for an existing component.
         :return: a unique integer ID used to refer to a component
         """
+        if not isinstance(unresolved_id, (int, str)):
+            raise TypeError('IDs must be integers or strings')
+
         if new:
             if unresolved_id in self._id_map or unresolved_id in self.ids_in_use:
                 raise ValueError(f'The ID you specified ({unresolved_id}) for a new component is already in use')
@@ -68,6 +71,9 @@ class GttDisplay:
                 raise OutOfIdsError('Cannot assign a new integer ID because all possible IDs are in use')
 
             else:
+                if unresolved_id < 0 or unresolved_id > ID_MAX:
+                    raise ValueError(f'IDs must be greater than zero and less than {ID_MAX}')
+
                 self.ids_in_use.add(unresolved_id)
                 return unresolved_id
         else:
