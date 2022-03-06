@@ -1,0 +1,4 @@
+pyserial
+sphinx
+wheel
+twine
