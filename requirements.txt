@@ -2,3 +2,4 @@ pyserial
 sphinx
 wheel
 twine
+pytest

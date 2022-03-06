@@ -1,6 +1,6 @@
 from typing import Dict, Set, Union
 
-from serial import Serial
+import serial
 
 from gtt.enums import *
 from gtt.byte_formatting import *
@@ -17,7 +17,7 @@ class GttDisplay:
         :param width: the width of the display in pixels
         :param height: the height of the display in pixels
         """
-        self._conn = Serial(port, baudrate=115200, rtscts=True, timeout=0.5)
+        self._conn = serial.Serial(port, baudrate=115200, rtscts=True, timeout=0.5)
         self.width: int = width
         """The height of this display in pixels"""
 
