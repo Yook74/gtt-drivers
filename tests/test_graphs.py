@@ -59,6 +59,7 @@ def test_invalid_create(display: GttDisplay):
         dict(bar_id=5, value=2, max_value=3, x_pos=0, y_pos=0, width=1, height=1, fg_color_hex='00000G'),
         dict(bar_id=5, value=2, max_value=3, x_pos=0, y_pos=0, width=1, height=1, fg_color_hex='0'),
         dict(bar_id=5, value=2e7, max_value=3, x_pos=0, y_pos=0, width=1, height=1),
+        dict(bar_id=5, value=2, max_value=3, x_pos=-20, y_pos=0, width=1, height=1),
     ]
 
     for kwargs in invalid_args:
