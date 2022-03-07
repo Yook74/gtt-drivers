@@ -21,26 +21,10 @@ class MonitoredSerialConn(serial.Serial):
         return recv
 
 
-class MockedSerialConn(MonitoredSerialConn):
-    def __init__(self, *_, **__):
-        self.last_message_sent = bytes()
-        self.bytes_received = None
-
-    def write(self, data):
-        self.last_message_sent = data
-
-    def read(self, size=1):
-        pass
-
-
 @pytest.fixture
 def display(pytestconfig, monkeypatch):
-    if pytestconfig.getoption('--mock-display'):
-        monkeypatch.setattr(serial, 'Serial', MockedSerialConn)
-    else:
-        monkeypatch.setattr(serial, 'Serial', MonitoredSerialConn)
-
-    display = GttDisplay('/dev/ttyUSB0', width=200, height=200)
+    monkeypatch.setattr(serial, 'Serial', MonitoredSerialConn)
+    display = GttDisplay('/dev/ttyUSB0')
     display.clear_screen()
     return display
 
