@@ -5,8 +5,12 @@ def ints_to_signed_shorts(*ints: int) -> bytes:
     ])
 
 
-def hex_strings_to_bytes(*hex_strings: str) -> bytes:
-    return b''.join([
-        bytes.fromhex(hex_string)
-        for hex_string in hex_strings
-    ])
+def hex_colors_to_bytes(*hex_colors: str) -> bytes:
+    out = b''
+    for hex_color in hex_colors:
+        if len(hex_color) != 6:
+            raise ValueError('Hex colors must be 6 characters long')
+
+        out += bytes.fromhex(hex_color)
+
+    return out

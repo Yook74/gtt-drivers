@@ -144,15 +144,15 @@ class GttDisplay:
         :param bg_color_hex: a hex color string for the unfilled part of the bar
         :param direction: Describes how the bar will grow and shrink based on the current value
         """
-        self._validate_x(x_pos, x_pos + width)
-        self._validate_y(y_pos, y_pos + height)
+        self._validate_x(x_pos, x_pos + width - 1)
+        self._validate_y(y_pos, y_pos + height - 1)
         bar_id = self._resolve_id(bar_id, new=True)
 
         self._conn.write(
             bytes.fromhex('FE 67') +
             bar_id.to_bytes(1, 'big') +
             ints_to_signed_shorts(min_value, max_value, x_pos, y_pos, width, height) +
-            hex_strings_to_bytes(fg_color_hex, bg_color_hex) +
+            hex_colors_to_bytes(fg_color_hex, bg_color_hex) +
             direction.to_bytes(1, 'big')
         )
 
