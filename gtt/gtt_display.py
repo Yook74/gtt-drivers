@@ -12,16 +12,17 @@ IdType = Union[int, str]
 
 
 class GttDisplay:
-    def __init__(self, port: str, width: int, height: int):
-        """:param port: a serial port like COM3 or /dev/ttyUSB0
-        :param width: the width of the display in pixels
-        :param height: the height of the display in pixels
-        """
+    def __init__(self, port: str):
+        """:param port: a serial port like COM3 or /dev/ttyUSB0"""
         self._conn = serial.Serial(port, baudrate=115200, rtscts=True, timeout=0.5)
-        self.width: int = width
+
+        self._conn.write(b'\xfe\x03')
+        info_bytes = self._receive_query_response(252, 3)
+
+        self.width: int = int.from_bytes(info_bytes[:2], 'big')
         """The height of this display in pixels"""
 
-        self.height: int = height
+        self.height: int = int.from_bytes(info_bytes[2: 4], 'big')
         """The height of this display in pixels"""
 
         self._id_map: Dict[str, int] = {}
@@ -88,11 +89,23 @@ class GttDisplay:
 
     def _receive_status_response(self, *header_ints: int):
         """For some commands, the GTT will respond with a few header bytes followed by a length short
-         and finally one or more status bytes.
-         This method tries to receive those header bytes and then raises an exception if the status bytes are not happy.
+        and finally one or more status bytes.
+        This method tries to receive those header bytes and then raises an exception if the status bytes are not happy.
 
-         :param header_ints: An exception will be raised if the response does not start with these bytes.
-         """
+        :param header_ints: An exception will be raised if the response does not start with these bytes.
+        """
+        status_bytes = self._receive_query_response(*header_ints)
+        status_codes = [byte for byte in status_bytes]
+
+        if any(code != 0xfe for code in status_codes):
+            raise StatusError(*status_codes)
+
+    def _receive_query_response(self, *header_ints) -> bytes:
+        """Receives the response of a query command which are a few header bytes, a length short, and then a payload.
+
+        :param header_ints: An exception will be raised if the response does not start with these bytes.
+        :return: the payload as bytes for the message.
+        """
         expected_str = ''
         received_str = ''
 
@@ -109,17 +122,17 @@ class GttDisplay:
             if received_int != expected_int:
                 raise UnexpectedResponse(f'Expected response starting with {expected_str} but got {received_str}')
 
-        status_len = self._conn.read(2)
-        if status_len == b'':
+        payload_len = self._conn.read(2)
+        if payload_len == b'':
             raise UnexpectedResponse('Expected a length byte but got nothing')
 
-        status_codes = [
-           int.from_bytes(self._conn.read(1), 'big')
-           for _ in range((int.from_bytes(status_len, 'big')))
-        ]
+        payload_len = int.from_bytes(payload_len, 'big')
+        recv = self._conn.read(payload_len)
 
-        if any(code != 0xfe for code in status_codes):
-            raise StatusError(*status_codes)
+        if len(recv) != payload_len:
+            raise UnexpectedResponse(f'Expected {payload_len} bytes in response but only got {len(recv)}')
+
+        return recv
 
     def clear_screen(self):
         """Clears everything on the screen and resets insertion cursors"""

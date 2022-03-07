@@ -48,7 +48,7 @@ def test_right_bar(display: GttDisplay, cli_verify):
         direction=BarDirection.RIGHT_TO_LEFT
     )
 
-    cli_verify('There is a small rectangle near the middle of the screen')
+    cli_verify('There is a small rectangle near the top right of the screen')
 
 
 def test_invalid_create(display: GttDisplay):
