@@ -5,6 +5,13 @@ def ints_to_signed_shorts(*ints: int) -> bytes:
     ])
 
 
+def ints_to_unsigned_shorts(*ints: int) -> bytes:
+    return b''.join([
+        int_.to_bytes(2, 'big', signed=False)
+        for int_ in ints
+    ])
+
+
 def hex_colors_to_bytes(*hex_colors: str) -> bytes:
     out = b''
     for hex_color in hex_colors:
