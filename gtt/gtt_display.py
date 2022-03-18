@@ -308,7 +308,7 @@ class GttDisplay:
 
         self._receive_status_response(252, 25)
 
-    def load_font(self, font_id: int, fileName: str):
+    def load_font(self, font_id: IdType, fileName: str):
         """Load a font file from the SD card into a font buffer for use.
         :param font_id: Index used to identify the font. Has to be an int.
         :param fileName: filename, and path from the root folder, of the animation file to load.
