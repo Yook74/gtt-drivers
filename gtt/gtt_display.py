@@ -184,7 +184,7 @@ class GttDisplay:
         self._receive_status_response(252, 105)
 
     def create_pixel(self, x_pos: int, y_pos: int):
-        """Creates a bar graph which is really just a single bar.
+        """Creates a pixel
         :param x_pos: the distance from the left edge of the screen in pixel
         :param y_pos: the distance from the top edge of the screen in pixel
         """
@@ -202,11 +202,11 @@ class GttDisplay:
         )
 
     def draw_rectangle(self, x_pos: int, y_pos: int, width: int, height: int):
-        """Creates a rectangle which is really just a single bar.
+        """Creates a rectangle which is really and outline rectangle
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
         :param width: the width of the rectangle in pixels
-        :param height: the height of the bar in pixels
+        :param height: the height of the rectangle in pixels
         """
 
         self._validate_x(x_pos, x_pos + width - 1)
@@ -216,10 +216,10 @@ class GttDisplay:
             ints_to_signed_shorts(x_pos, y_pos, width, height)
         )
 
-    def create_a_label(self, label_id: int, x_pos: int, y_pos: int, width: int, height: int, font: int, R: int, G: int,
-                       B: int, size: int,
-                       value: str, rot: int, VJst: FontAlignVertical = FontAlignVertical.TOP,
-                       HJst: FontAlignHorizontal = FontAlignHorizontal.LEFT):
+    def create_label(self, label_id: IdType, x_pos: int, y_pos: int, width: int, height: int, font: int,
+                     font_size: int, rot: int, fg_color_hex='FFFFFF', bg_color_hex='000000', value: str = "Label",
+                     VJst: FontAlignVertical = FontAlignVertical.TOP,
+                     HJst: FontAlignHorizontal = FontAlignHorizontal.LEFT):
         """Creates a label in a portion of the screen
         :param label_id: index used to identify this label in the label list
         :param x_pos: the distance from the left edge of the screen in pixels
@@ -230,11 +230,10 @@ class GttDisplay:
         :param VJst: the vertical justification of text within the label
         :param HJst: the horizontal justification of text within the label
         :param font: the Font index of a previously loaded font to be used for the label.
-        :param R: the intensity of red, 0 to 255, used for label font color
-        :param G: the Intensity of green, 0 to 255, used for label font color
-        :param B: the Intensity of blue, 0 to 255, used for label font color
-        :param value: New ASCII formatted string to display within the label. String should be a single line in height.
-        :param size: Size of the font
+        :param fg_color_hex: a hex color string for the filled part of the label
+        :param bg_color_hex: a hex color string for the unfilled part of the label
+        :param value: New UTF-8 string to display within the label. String should be a single line in height
+        :param font_size: Size of the font
         """
 
         self._validate_x(x_pos, x_pos + width - 1)
@@ -248,17 +247,17 @@ class GttDisplay:
             VJst.to_bytes(1, 'big') +
             HJst.to_bytes(1, 'big') +
             font.to_bytes(1, 'big') +
-            hex_colors_to_bytes('FFFFFF')
+            hex_colors_to_bytes(fg_color_hex)
         )
 
         self.update_label(label_id, value)
-        self.set_label_font_color(label_id, R, G, B)
-        self.set_label_font_size(label_id, size)
-        self.set_label_background_color(label_id, RB=0xFF, GB=0xFF, BB=0xFF)
+        self.set_label_font_color(label_id, fg_color_hex)
+        self.set_label_font_size(label_id, font_size)
+        self.set_label_background_color(label_id, bg_color_hex)
 
-    def update_label(self, label_id: int, value: str):
-        """Updates string of the label identified by label_id
-        """
+    def update_label(self, label_id: IdType, value: str = "Label"):
+        """Updates string of the label identified by label_id"""
+        label_id = self._resolve_id(label_id)
         self._conn.write(
             bytes.fromhex('FE 11') +
             label_id.to_bytes(1, 'big') +
@@ -266,30 +265,26 @@ class GttDisplay:
             value.encode('utf-8') + b'\0'
         )
 
-    def set_label_font_color(self, label_id: int, R: int, G: int, B: int):
+    def set_label_font_color(self, label_id: IdType, fg_color_hex='FFFFFF'):
         """Sets the font  color of the label given by the RGB
         :param label_id: index used to identify this label in the label list
-        :param R: Intensity of red, 0 to 255, limited to display metrics.
-        :param G: Intensity of green, 0 to 255, limited to display metrics.
-        :param B: Intensity of blue, 0 to 255, limited to display metrics.
+        :param fg_color_hex: a hex color string for the filled part of the label
         """
-
+        label_id = self._resolve_id(label_id)
         self._conn.write(
             bytes.fromhex('FE 15') +
             label_id.to_bytes(1, 'big') +
-            R.to_bytes(1, 'big') +
-            G.to_bytes(1, 'big') +
-            B.to_bytes(1, 'big')
+            hex_colors_to_bytes(fg_color_hex)
         )
 
         self._receive_status_response(252, 21)
 
-    def set_label_font_size(self, label_id: int, size: int):
-        """Sets the font size of the label given by the size variable
+    def set_label_font_size(self, label_id: IdType, size: int):
+        """Sets the font size of the label given by the label_id variable
         :param label_id: index used to identify this label in the label list
         :param size: Size of the font
         """
-
+        label_id = self._resolve_id(label_id)
         self._conn.write(
             bytes.fromhex('FE 17') +
             label_id.to_bytes(1, 'big') +
@@ -298,25 +293,37 @@ class GttDisplay:
 
         self._receive_status_response(252, 23)
 
-    def set_label_background_color(self, label_id: int, RB: int = 0xFF, GB: int = 0xFF, BB: int = 0xFF):
+    def set_label_background_color(self, label_id: IdType, bg_color_hex='000000'):
         """""Set the background color of an existing label by the RB, GB, and BB
         :param label_id: index used to identify this label in the label list
-        :param RB: Intensity of red, 0 to 255, limited to display metrics.
-        :param GB: Intensity of green, 0 to 255, limited to display metrics.
-        :param BB: Intensity of blue, 0 to 255, limited to display metrics.
+        :param bg_color_hex: a hex color string for the unfilled part of the label
         """
 
+        label_id = self._resolve_id(label_id)
         self._conn.write(
             bytes.fromhex('FE 19') +
             label_id.to_bytes(1, 'big') +
-            RB.to_bytes(1, 'big') +
-            GB.to_bytes(1, 'big') +
-            BB.to_bytes(1, 'big')
+            hex_colors_to_bytes(bg_color_hex)
         )
 
         self._receive_status_response(252, 25)
 
-    def load_bitmap(self, bitmap_id: int, fileName: str):
+    def load_font(self, font_id: int, fileName: str):
+        """Load a font file from the SD card into a font buffer for use.
+        :param font_id: Index used to identify the font. Has to be an int.
+        :param fileName: filename, and path from the root folder, of the animation file to load.
+        """
+        font_id = self._resolve_id(font_id, new=True)
+
+        self._conn.write(
+            bytes.fromhex('FE 28') +
+            font_id.to_bytes(1, 'big') +
+            fileName.encode('ascii') + b'\0'
+        )
+
+        self._receive_status_response(252, 40)
+
+    def load_bitmap(self, bitmap_id: IdType, fileName: str):
         """Load a bitmap file from the SD card into a bitmap buffer for use.
         :param bitmap_id: index used to identify the bitmap. Specific to bitmaps, and screen rectangles
         :param fileName: filename, and path from the root folder, of the bitmap file to load
@@ -331,13 +338,13 @@ class GttDisplay:
 
         self._receive_status_response(252, 95)
 
-    def display_bitmap(self, bitmap_id: int, x_pos: int, y_pos: int):
+    def display_bitmap(self, bitmap_id: IdType, x_pos: int, y_pos: int):
         """Display a bitmap image on the screen, from the bitmap buffer
         :param bitmap_id: Index used to identify the desired file in the bitmap buffer
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
         """
-
+        bitmap_id = self._resolve_id(bitmap_id)
         self._validate_x(x_pos)
         self._validate_y(y_pos)
 
@@ -349,7 +356,7 @@ class GttDisplay:
 
         self._receive_status_response(252, 97)
 
-    def set_bitmap_transparency(self, bitmap_id: int, R: int, G: int, B: int):
+    def set_bitmap_transparency(self, bitmap_id: IdType, R: int, G: int, B: int):
         """Set the transparent color for all future renderings of a specific bitmap index. Does not affect previously
         drawn versions of the specified bitmap
         :param bitmap_id: the image index used to identify the desired file in the bitmap buffer.
@@ -357,7 +364,7 @@ class GttDisplay:
         :param G: Intensity of green, 0 to 255, limited to display metrics.
         :param B: Intensity of blue, 0 to 255, limited to display metrics.
         """
-
+        bitmap_id = self._resolve_id(bitmap_id)
         self._conn.write(
             bytes.fromhex('FE 62') +
             bitmap_id.to_bytes(1, 'big') +
@@ -368,7 +375,7 @@ class GttDisplay:
 
         self._receive_status_response(252, 98)
 
-    def initialize_trace(self, trace_id: int, x_pos: int, y_pos: int, width: int, height: int,
+    def initialize_trace(self, trace_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
                          min_value: int, max_value: int, step: int, R: int, G: int, B: int,
                          value: int, style: int = 129):
         """Initialize a new graph trace. Upon execution of an update command, the trace region will be shifted by the
@@ -407,11 +414,12 @@ class GttDisplay:
 
         self.update_trace(trace_id, value)
 
-    def update_trace(self, trace_id: int, value: int):
+    def update_trace(self, trace_id: IdType, value: int):
         """Update the value of the trace at the specified index.
         :param trace_id: Index used to identify this trace in the trace list
         :param value: Current value of the specified trace
         """
+        trace_id = self._resolve_id(trace_id)
         self._conn.write(
             bytes.fromhex('FE 75') +
             trace_id.to_bytes(1, 'big') +
@@ -419,7 +427,7 @@ class GttDisplay:
 
         )
 
-    def create_touch_region(self, region_id: int, x_pos: int, y_pos: int, width: int, height: int,
+    def create_touch_region(self, region_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
                             up: int, down: int):
         """Create a region of the screen that responds to touch events with a unique message and momentary visual update
         :param region_id: Index used to identify this touch region in the touch region list. Region 255 is reserved for
@@ -450,7 +458,7 @@ class GttDisplay:
             if response == b'\xfc\x87\x00\x02\x00\x03':
                 print('Contact was made')
 
-    def create_toggle_region(self, region_id: int, x_pos: int, y_pos: int, width: int, height: int,
+    def create_toggle_region(self, region_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
                              off_id: int, on_id: int):
         """Create a region of the screen that responds to touch events with a unique message and toggleable visual
         update
@@ -492,7 +500,7 @@ class GttDisplay:
             state.to_bytes(1, 'big')
         )
 
-    def setup_animation(self, animation_id: int, animation_instance: int, x_pos: int, y_pos: int, fileName: str,
+    def setup_animation(self, animation_id: IdType, animation_instance: int, x_pos: int, y_pos: int, fileName: str,
                         play=True):
         """Define a region of the screen to be used for the specified animation. If an animation is already in use
         at that index, it will be overwritten. Multiple Animation Instances can be setup from one buffered animation
@@ -514,7 +522,7 @@ class GttDisplay:
 
         self.load_animation(animation_id, fileName, animation_instance, play)
 
-    def load_animation(self, animation_id: int, fileName: str, animation_instance: int,
+    def load_animation(self, animation_id: IdType, fileName: str, animation_instance: int,
                        play=True):
         """Loads an animation file from the SD card into an animation buffer for use.
         :param animation_id: index used to identify this animation file. Specific to animations.
@@ -522,6 +530,7 @@ class GttDisplay:
         :param animation_instance: index used to identify this animation instance in the animation list.
         :param play: desired animation state
         """
+        animation_id = self._resolve_id(animation_id)
         prev_timeout = self._conn.timeout
         self._conn.timeout = 5
         try:
