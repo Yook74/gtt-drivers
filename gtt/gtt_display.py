@@ -356,28 +356,26 @@ class GttDisplay:
 
         self._receive_status_response(252, 97)
 
-    def set_bitmap_transparency(self, bitmap_id: IdType, R: int, G: int, B: int):
+    def set_bitmap_transparency(self, bitmap_id: IdType, fg_color_hex='FFFFFF'):
         """Set the transparent color for all future renderings of a specific bitmap index. Does not affect previously
         drawn versions of the specified bitmap
         :param bitmap_id: the image index used to identify the desired file in the bitmap buffer.
-        :param R: Intensity of red, 0 to 255, limited to display metrics.
-        :param G: Intensity of green, 0 to 255, limited to display metrics.
-        :param B: Intensity of blue, 0 to 255, limited to display metrics.
+        :param fg_color_hex: Intensity of the color, limited to display metrics.
         """
         bitmap_id = self._resolve_id(bitmap_id)
         self._conn.write(
             bytes.fromhex('FE 62') +
             bitmap_id.to_bytes(1, 'big') +
-            R.to_bytes(1, 'big') +
-            G.to_bytes(1, 'big') +
-            B.to_bytes(1, 'big')
+            hex_colors_to_bytes(fg_color_hex)
         )
 
         self._receive_status_response(252, 98)
 
     def initialize_trace(self, trace_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
-                         min_value: int, max_value: int, step: int, R: int, G: int, B: int,
-                         value: int, style: int = 129):
+                         min_value: int, max_value: int, step: int, value: int, fg_color_hex='FFFFFF',
+                         trace_type: TraceType = TraceType.LINE,
+                         trace_origin_pos: TraceOriginPosition = TraceOriginPosition.BOTTOM_LEFT,
+                         trace_origin_shift: TraceOriginShift = TraceOriginShift.TOWARD_ORIGIN):
         """Initialize a new graph trace. Upon execution of an update command, the trace region will be shifted by the
         step size, and a line or bar drawn between the previous value and the new one. Individual traces can be updated
         with the update_trace command.
@@ -389,27 +387,26 @@ class GttDisplay:
         :param min_value: value displayed at the lowest point of the trace
         :param max_value: value displayed at the highest point of the trace
         :param step: Number of pixels shifted when a trace is updated.
-        :param R: Intensity of red for trace color, 0 to 255, limited to display metrics.
-        :param G: Intensity of green for trace color, 0 to 255, limited to display metrics.
-        :param B: Intensity of blue for trace color, 0 to 255, limited to display metrics.
+        :param fg_color_hex: Intensity of the color, limited to display metrics.
         :param value: current value of the specified trace.
-        :param style: Orientation and Direction of the trace, as per eTraceType and Direction Values. A style is
-        created by summing values of individual attributes.
+        :param trace_type: value that defines what type of trace is use(Bar, Line, Step, Box)
+        :param trace_origin_pos: value that defines the origin position of the trace
+        :param trace_origin_shift: value that defines the orientation of the trace starting point
+        Trace_style is the sum of the trace_type, trace_origin_pos, and trace_origin_shift.
         """
 
         self._validate_x(x_pos, x_pos + width - 1)
         self._validate_y(y_pos, y_pos + height - 1)
         trace_id = self._resolve_id(trace_id, new=True)
+        trace_style = trace_type + trace_origin_pos + trace_origin_shift
 
         self._conn.write(
             bytes.fromhex('FE 74') +
             trace_id.to_bytes(1, 'big') +
             ints_to_signed_shorts(x_pos, y_pos, width, height, min_value, max_value) +
             step.to_bytes(1, 'big') +
-            style.to_bytes(1, 'big') +
-            R.to_bytes(1, 'big') +
-            G.to_bytes(1, 'big') +
-            B.to_bytes(1, 'big')
+            trace_style.to_bytes(1, 'big') +
+            hex_colors_to_bytes(fg_color_hex)
         )
 
         self.update_trace(trace_id, value)

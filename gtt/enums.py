@@ -20,18 +20,24 @@ class FontAlignHorizontal(IntEnum):
     CENTER = 2
 
 
-class TraceTypeDirection(IntEnum):
+class TraceType(IntEnum):
     BAR = 0
     LINE = 1
     STEP = 2
     BOX = 3
+
+
+class TraceOriginPosition(IntEnum):
     BOTTOM_LEFT = 0
-    SHIFT_TOWARD_ORIGIN = 0
     LEFT_UP = 16
     TOP_RIGHT = 32
     RIGHT_DOWN = 48
     BOTTOM_RIGHT = 64
-    SHIFT_AWAY_FROM_ORIGIN = 128
     LEFT_DOWN = 80
     TOP_LEFT = 96
     RIGHT_UP = 112
+
+
+class TraceOriginShift(IntEnum):
+    TOWARD_ORIGIN = 0
+    AWAY_FROM_ORIGIN = 128
