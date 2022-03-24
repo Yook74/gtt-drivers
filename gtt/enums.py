@@ -28,16 +28,16 @@ class TraceType(IntEnum):
 
 
 class TraceOriginPosition(IntEnum):
-    BOTTOM_LEFT = 0
-    LEFT_UP = 16
-    TOP_RIGHT = 32
-    RIGHT_DOWN = 48
-    BOTTOM_RIGHT = 64
-    LEFT_DOWN = 80
-    TOP_LEFT = 96
-    RIGHT_UP = 112
+    TOP_RIGHT_DOWN = 0
+    BOTTOM_RIGHT = 16
+    BOTTOM_LEFT_UP = 32
+    TOP_LEFT = 48
+    TOP_LEFT_DOWN = 64
+    TOP_RIGHT = 80
+    BOTTOM_RIGHT_UP = 96
+    BOTTOM_LEFT = 112
 
 
 class TraceOriginShift(IntEnum):
-    TOWARD_ORIGIN = 0
-    AWAY_FROM_ORIGIN = 128
+    TOWARD_ORIGIN = False
+    AWAY_FROM_ORIGIN = True

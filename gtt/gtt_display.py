@@ -65,7 +65,6 @@ class GttDisplay:
             elif isinstance(unresolved_id, str):
                 for integer in range(ID_MAX, 0, -1):
                     if integer not in self.ids_in_use:
-
                         self.ids_in_use.add(integer)
                         self._id_map[unresolved_id] = integer
                         return integer
@@ -143,7 +142,6 @@ class GttDisplay:
                          min_value: int = 0, fg_color_hex='FFFFFF', bg_color_hex='000000',
                          direction: BarDirection = BarDirection.BOTTOM_TO_TOP):
         """Creates a bar graph which is really just a single bar.
-
         :param bar_id: This will be the unique ID used to refer to the bar in other methods.
             If a string is supplied, it will be mapped to an integer and the mapping will be stored in the instance.
         :param value: the initial value of the bar graph. Should be between min_value and max_value inclusive
@@ -184,7 +182,7 @@ class GttDisplay:
         self._receive_status_response(252, 105)
 
     def create_pixel(self, x_pos: int, y_pos: int):
-        """Creates a pixel
+        """Creates a single pixel in the position x and y. The default color is white.
         :param x_pos: the distance from the left edge of the screen in pixel
         :param y_pos: the distance from the top edge of the screen in pixel
         """
@@ -202,7 +200,7 @@ class GttDisplay:
         )
 
     def draw_rectangle(self, x_pos: int, y_pos: int, width: int, height: int):
-        """Creates a rectangle which is really and outline rectangle
+        """Creates an outlined rectangle
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
         :param width: the width of the rectangle in pixels
@@ -216,24 +214,24 @@ class GttDisplay:
             ints_to_signed_shorts(x_pos, y_pos, width, height)
         )
 
-    def create_label(self, label_id: IdType, x_pos: int, y_pos: int, width: int, height: int, font: int,
-                     font_size: int, rot: int, fg_color_hex='FFFFFF', bg_color_hex='000000', value: str = "Label",
-                     VJst: FontAlignVertical = FontAlignVertical.TOP,
-                     HJst: FontAlignHorizontal = FontAlignHorizontal.LEFT):
+    def create_label(self, label_id: IdType, x_pos: int, y_pos: int, width: int, height: int, font_size: int,
+                     font: int = 0, rot=0, fg_color_hex='FFFFFF', bg_color_hex='000000', value: str = "Label",
+                     vertical_just: FontAlignVertical = FontAlignVertical.TOP,
+                     horizontal_just: FontAlignHorizontal = FontAlignHorizontal.LEFT):
         """Creates a label in a portion of the screen
-        :param label_id: index used to identify this label in the label list
+        :param label_id: used to identify this label. If a string is supplied, it will be mapped to an integer and        the mapping will be stored in the instance.
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
-        :param width: the width of the bar in pixels
-        :param height: the height of the bar in pixels
-        :param rot: the rotation of the text within the label.
-        :param VJst: the vertical justification of text within the label
-        :param HJst: the horizontal justification of text within the label
+        :param width: the width of the label in pixels
+        :param height: the height of the label in pixels
+        :param rot: the rotation of the text within the label, ranges from 0-360 degrees
+        :param vertical_just: the vertical justification of text within the label
+        :param horizontal_just: the horizontal justification of text within the label
         :param font: the Font index of a previously loaded font to be used for the label.
-        :param fg_color_hex: a hex color string for the filled part of the label
-        :param bg_color_hex: a hex color string for the unfilled part of the label
-        :param value: New UTF-8 string to display within the label. String should be a single line in height
-        :param font_size: Size of the font
+        :param fg_color_hex: a hex color string for the text of the label
+        :param bg_color_hex: a hex color string for the background part of the label
+        :param value: a UTF-8 string to display within the label. String should be a single line in height
+        :param font_size: Size of the font. Default font size doesn't support other font sizes.
         """
 
         self._validate_x(x_pos, x_pos + width - 1)
@@ -244,32 +242,33 @@ class GttDisplay:
             bytes.fromhex('FE 10') +
             label_id.to_bytes(1, 'big') +
             ints_to_signed_shorts(x_pos, y_pos, width, height, rot) +
-            VJst.to_bytes(1, 'big') +
-            HJst.to_bytes(1, 'big') +
+            vertical_just.to_bytes(1, 'big') +
+            horizontal_just.to_bytes(1, 'big') +
             font.to_bytes(1, 'big') +
             hex_colors_to_bytes(fg_color_hex)
         )
 
         self.update_label(label_id, value)
-        self.set_label_font_color(label_id, fg_color_hex)
         self.set_label_font_size(label_id, font_size)
         self.set_label_background_color(label_id, bg_color_hex)
 
-    def update_label(self, label_id: IdType, value: str = "Label"):
+    def update_label(self, label_id: IdType, value: str):
         """Updates string of the label identified by label_id"""
         label_id = self._resolve_id(label_id)
         self._conn.write(
             bytes.fromhex('FE 11') +
             label_id.to_bytes(1, 'big') +
-            b'\x02' +
+            bytes.fromhex('02') +
             value.encode('utf-8') + b'\0'
         )
 
-    def set_label_font_color(self, label_id: IdType, fg_color_hex='FFFFFF'):
-        """Sets the font  color of the label given by the RGB
-        :param label_id: index used to identify this label in the label list
-        :param fg_color_hex: a hex color string for the filled part of the label
+    def set_label_font_color(self, label_id: IdType, fg_color_hex: str):
+        """Sets the font color of an existing label by fg_color_hex
+        :param label_id: used to identify this label. If a string is supplied, it will be mapped to an integer and
+        the mapping will be stored in the instance.
+        :param fg_color_hex: a hex color string for the text of the label
         """
+
         label_id = self._resolve_id(label_id)
         self._conn.write(
             bytes.fromhex('FE 15') +
@@ -280,10 +279,13 @@ class GttDisplay:
         self._receive_status_response(252, 21)
 
     def set_label_font_size(self, label_id: IdType, size: int):
-        """Sets the font size of the label given by the label_id variable
-        :param label_id: index used to identify this label in the label list
-        :param size: Size of the font
+        """Sets the font size of the label given by the label_id variable. Default font size doesn't support other
+        font sizes
+        :param label_id: used to identify this label. If a string is supplied, it will be mapped to an integer and
+        the mapping will be stored in the instance.
+        :param size: Size of the font in pixels
         """
+
         label_id = self._resolve_id(label_id)
         self._conn.write(
             bytes.fromhex('FE 17') +
@@ -293,10 +295,11 @@ class GttDisplay:
 
         self._receive_status_response(252, 23)
 
-    def set_label_background_color(self, label_id: IdType, bg_color_hex='000000'):
-        """""Set the background color of an existing label by the RB, GB, and BB
-        :param label_id: index used to identify this label in the label list
-        :param bg_color_hex: a hex color string for the unfilled part of the label
+    def set_label_background_color(self, label_id: IdType, bg_color_hex):
+        """Sets the background color of an existing label by bg_color_hex
+        :param label_id: used to identify this label. If a string is supplied, it will be mapped to an integer and
+        the mapping will be stored in the instance.
+        :param bg_color_hex: a hex color string for the background of the label
         """
 
         label_id = self._resolve_id(label_id)
@@ -308,39 +311,47 @@ class GttDisplay:
 
         self._receive_status_response(252, 25)
 
-    def load_font(self, font_id: IdType, fileName: str):
-        """Load a font file from the SD card into a font buffer for use.
-        :param font_id: Index used to identify the font. Has to be an int.
-        :param fileName: filename, and path from the root folder, of the animation file to load.
+    def load_font(self, font_id: IdType, file_name: str):
+        """Loads a font file from the SD card into a font buffer for use.
+        :param font_id: used to identify the font. If a string is supplied, it will be mapped to an integer and
+        the mapping will be stored in the instance.
+        :param file_name: font filename, and path from the root folder, of the font file to load.
+        Font file type that is supported font types include .ttf, .fon, and .otf
+        file_name example path: "r'\Lorge\Fonts\arial\arial.ttf'"
         """
         font_id = self._resolve_id(font_id, new=True)
 
         self._conn.write(
             bytes.fromhex('FE 28') +
             font_id.to_bytes(1, 'big') +
-            fileName.encode('ascii') + b'\0'
+            file_name.encode('ascii') + b'\0'
         )
 
         self._receive_status_response(252, 40)
 
-    def load_bitmap(self, bitmap_id: IdType, fileName: str):
-        """Load a bitmap file from the SD card into a bitmap buffer for use.
-        :param bitmap_id: index used to identify the bitmap. Specific to bitmaps, and screen rectangles
-        :param fileName: filename, and path from the root folder, of the bitmap file to load
+    def load_bitmap(self, bitmap_id: IdType, file_name: str):
+        """Loads a bitmap file from the SD card into a bitmap buffer for use. File must be the same height and width as
+        the display ont the module
+        :param bitmap_id: used to identify the bitmap. If a string is supplied, it will be mapped to an integer
+        and the mapping will be stored in the instance.
+        :param file_name: filename, and path from the root folder, of the bitmap file to load, must be a .bmp
         """
+
         bitmap_id = self._resolve_id(bitmap_id, new=True)
 
         self._conn.write(
             bytes.fromhex('FE 5F') +
             bitmap_id.to_bytes(1, 'big') +
-            fileName.encode() + b'\0'
+            file_name.encode() + b'\0'
         )
 
         self._receive_status_response(252, 95)
 
     def display_bitmap(self, bitmap_id: IdType, x_pos: int, y_pos: int):
-        """Display a bitmap image on the screen, from the bitmap buffer
-        :param bitmap_id: Index used to identify the desired file in the bitmap buffer
+        """Displays a bitmap image on the screen, from the bitmap buffer. File must be the same height and width as the
+        display ont the module
+        :param bitmap_id: used to identify the desired file in the bitmap buffer. If a string is supplied, it will
+        be mapped to an integer and the mapping will be stored in the instance.
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
         """
@@ -356,10 +367,26 @@ class GttDisplay:
 
         self._receive_status_response(252, 97)
 
+    def load_and_display_bitmap(self, bitmap_id: IdType, file_name: str, x_pos: int, y_pos: int, ):
+        """Loads a bitmap file from the SD card into a bitmap buffer for use. File must be the same height and width as
+        the display ont the module
+        :param bitmap_id: used to identify the bitmap. If a string is supplied, it will be mapped to an integer
+        and the mapping will be stored in the instance.
+        :param file_name: filename, and path from the root folder, of the bitmap file to load, must be a .bmp
+        :param x_pos: the distance from the left edge of the screen in pixels
+        :param y_pos: the distance from the top edge of the screen in pixels
+        """
+        # Load Bitmap
+        self.load_bitmap(bitmap_id, file_name)
+
+        # Display Bitmap
+        self.display_bitmap(bitmap_id, x_pos, y_pos)
+
     def set_bitmap_transparency(self, bitmap_id: IdType, fg_color_hex='FFFFFF'):
         """Set the transparent color for all future renderings of a specific bitmap index. Does not affect previously
         drawn versions of the specified bitmap
-        :param bitmap_id: the image index used to identify the desired file in the bitmap buffer.
+        :param bitmap_id: used to identify the desired file in the bitmap buffer. If a string is
+        supplied, it will be mapped to an integer and the mapping will be stored in the instance.
         :param fg_color_hex: Intensity of the color, limited to display metrics.
         """
         bitmap_id = self._resolve_id(bitmap_id)
@@ -370,16 +397,20 @@ class GttDisplay:
         )
 
         self._receive_status_response(252, 98)
+        # For Andrew TODO
+        # Transparency
 
     def initialize_trace(self, trace_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
-                         min_value: int, max_value: int, step: int, value: int, fg_color_hex='FFFFFF',
+                         max_value: int, value: int, step=1, min_value=0,
+                         trace_origin_shift=False, fg_color_hex='FFFFFF',
                          trace_type: TraceType = TraceType.LINE,
                          trace_origin_pos: TraceOriginPosition = TraceOriginPosition.BOTTOM_LEFT,
-                         trace_origin_shift: TraceOriginShift = TraceOriginShift.TOWARD_ORIGIN):
+                         ):
         """Initialize a new graph trace. Upon execution of an update command, the trace region will be shifted by the
         step size, and a line or bar drawn between the previous value and the new one. Individual traces can be updated
-        with the update_trace command.
-        :param trace_id: index used to identify this trace in the trace list
+        with the update_trace command. This has a transparent background and will show pixels and bitmaps images.
+        :param trace_id: used to identify this trace. If a string is supplied, it will be mapped to an integer and
+        the mapping will be stored in the instance.
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
         :param width: width of the trace region
@@ -398,7 +429,7 @@ class GttDisplay:
         self._validate_x(x_pos, x_pos + width - 1)
         self._validate_y(y_pos, y_pos + height - 1)
         trace_id = self._resolve_id(trace_id, new=True)
-        trace_style = trace_type + trace_origin_pos + trace_origin_shift
+        trace_style = trace_type + trace_origin_shift + trace_origin_pos
 
         self._conn.write(
             bytes.fromhex('FE 74') +
@@ -413,7 +444,8 @@ class GttDisplay:
 
     def update_trace(self, trace_id: IdType, value: int):
         """Update the value of the trace at the specified index.
-        :param trace_id: Index used to identify this trace in the trace list
+        :param trace_id: used to identify this trace. If a string is supplied, it will be mapped to an integer and
+        the mapping will be stored in the instance.
         :param value: Current value of the specified trace
         """
         trace_id = self._resolve_id(trace_id)
@@ -421,75 +453,80 @@ class GttDisplay:
             bytes.fromhex('FE 75') +
             trace_id.to_bytes(1, 'big') +
             ints_to_signed_shorts(value)
-
         )
 
     def create_touch_region(self, region_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
-                            up: int, down: int):
+                            up_bitmap_id: IdType, down_bitmap_id: IdType):
         """Create a region of the screen that responds to touch events with a unique message and momentary visual update
-        :param region_id: Index used to identify this touch region in the touch region list. Region 255 is reserved for
-        out of region responses.
+        :param region_id: used to identify this touch region in the touch region list. Region 255 is reserved for
+        out of region responses. If a string is supplied, it will be mapped to an integer and the mapping will be stored
+        in the instance.
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
-        :param width: width of the trace region
-        :param height: height of the trace region
-        :param up: index of the loaded bitmap displayed when the region is released
-        :param down: index of the loaded bitmap displayed when the region is touched
+        :param width: width of the touch region
+        :param height: height of the touch region
+        :param up_bitmap_id: index of the loaded bitmap displayed when the region is released
+        :param down_bitmap_id: index of the loaded bitmap displayed when the region is touched
         """
 
         self._validate_x(x_pos, x_pos + width - 1)
         self._validate_y(y_pos, y_pos + height - 1)
         region_id = self._resolve_id(region_id, new=True)
-
+        up_bitmap_id = self._resolve_id(up_bitmap_id)
+        down_bitmap_id = self._resolve_id(down_bitmap_id)
         self._conn.write(
             bytes.fromhex('FE 84') +
             region_id.to_bytes(1, 'big') +
             ints_to_signed_shorts(x_pos, y_pos) +
             ints_to_unsigned_shorts(width, height) +
-            up.to_bytes(1, 'big') +
-            down.to_bytes(1, 'big')
+            up_bitmap_id.to_bytes(1, 'big') +
+            down_bitmap_id.to_bytes(1, 'big')
         )
 
-        while True:
-            response = self._conn.read(6)  # binary value
-            if response == b'\xfc\x87\x00\x02\x00\x03':
-                print('Contact was made')
+        # For Andrew TODO
+        # 0x04 is associated to region_id
+        # response = self._conn.read(6)  # binary value
+        # if response == b'\xfc\x87\x00\x02\x00\x04':
+        #     print('Contact was made')
 
     def create_toggle_region(self, region_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
-                             off_id: int, on_id: int):
+                             off_bitmap_id: IdType, on_bitmap_id: IdType):
         """Create a region of the screen that responds to touch events with a unique message and toggleable visual
         update
-        :param region_id: index used to identify this touch region in the touch region list. Region 255 is reserved for
-         out of region responses
+        :param region_id: used to identify this touch region in the touch region list. Region 255 is reserved for
+        out of region responses. If a string is supplied, it will be mapped to an integer and the mapping will be stored
+        in the instance.
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
-        :param width: width of the trace region
-        :param height: height of the trace region
-        :param off_id: index of the loaded bitmap displayed when the region is in an inactive state
-        :param on_id: index of the loaded bitmap displayed when the region is in a toggled state
+        :param width: width of the touch region
+        :param height: height of the touch region
+        :param off_bitmap_id: index of the loaded bitmap displayed when the region is in an inactive state
+        :param on_bitmap_id: index of the loaded bitmap displayed when the region is in a toggled state
         """
 
         self._validate_x(x_pos, x_pos + width - 1)
         self._validate_y(y_pos, y_pos + height - 1)
         region_id = self._resolve_id(region_id, new=True)
-
+        on_bitmap_id = self._resolve_id(on_bitmap_id)
+        off_bitmap_id = self._resolve_id(off_bitmap_id)
         self._conn.write(
             bytes.fromhex('FE  96') +
             region_id.to_bytes(1, 'big') +
             ints_to_signed_shorts(x_pos, y_pos) +
             ints_to_unsigned_shorts(width, height) +
-            off_id.to_bytes(1, 'big') +
-            on_id.to_bytes(1, 'big')
+            off_bitmap_id.to_bytes(1, 'big') +
+            on_bitmap_id.to_bytes(1, 'big')
         )
 
         self._receive_status_response(252, 150)
 
-    def set_GPO_state(self, pin: int, state: bool):
-        """Toggle the specified General Purpose Output pin on or off, sourcing up to 15mA current at
-        5V per GPO or sinking to ground. This command can be used to control devices, or signal a host device.
-        :param pin: GPO to be controlled
-        :param state: GPO state, as per eGPOSetting Values
-        """
+        # For Andrew TODO
+        # 0x04 is associated to region_id
+        # if response == b'\xfc\x87\x00\x02\x00\x04':
+
+    def set_gpo_state(self, pin: int, state: bool):
+        """Set the specified General Purpose Output pin on or off. Sourcing up to 15mA of current at 5V per pin or
+        sinking to ground."""
 
         self._conn.write(
             bytes.fromhex('FE  49') +
@@ -497,102 +534,116 @@ class GttDisplay:
             state.to_bytes(1, 'big')
         )
 
-    def setup_animation(self, animation_id: IdType, animation_instance: int, x_pos: int, y_pos: int, fileName: str,
-                        play=True):
+    def setup_animation(self, memory_id: IdType, display_id: IdType, x_pos: int, y_pos: int):
         """Define a region of the screen to be used for the specified animation. If an animation is already in use
         at that index, it will be overwritten. Multiple Animation Instances can be setup from one buffered animation
         file.
-        :param animation_id: index where an animation file has been loaded.
-        :param animation_instance: index used to identify this animation instance in the animation list.
+        :param memory_id: used to identify this animation file. If a string is supplied, it will be mapped
+        to an integer and the mapping will be stored in the instance.
+        :param display_id: index used to identify this animation instance in the animation list.
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
-        :param fileName: filename, and path from the root folder, of the animation file to load.
-        :param play: desired animation state
         """
-        animation_id = self._resolve_id(animation_id, new=True)
+        memory_id = self._resolve_id(memory_id)
         self._conn.write(
             bytes.fromhex('FE  C1') +
-            animation_id.to_bytes(1, 'big') +
-            animation_instance.to_bytes(1, 'big') +
+            memory_id.to_bytes(1, 'big') +
+            display_id.to_bytes(1, 'big') +
             ints_to_signed_shorts(x_pos, y_pos)
         )
 
-        self.load_animation(animation_id, fileName, animation_instance, play)
-
-    def load_animation(self, animation_id: IdType, fileName: str, animation_instance: int,
-                       play=True):
+    def load_animation(self, memory_id: IdType, file_name: str):
         """Loads an animation file from the SD card into an animation buffer for use.
-        :param animation_id: index used to identify this animation file. Specific to animations.
-        :param fileName: filename, and path from the root folder, of the animation file to load.
-        :param animation_instance: index used to identify this animation instance in the animation list.
-        :param play: desired animation state
+        :param memory_id: used to identify this animation file. If a string is supplied, it will be mapped to
+        an integer and the mapping will be stored in the instance.
+        :param file_name: filename, and path from the root folder, of the animation file to load.
         """
-        animation_id = self._resolve_id(animation_id)
+        memory_id = self._resolve_id(memory_id)
         prev_timeout = self._conn.timeout
         self._conn.timeout = 5
         try:
             self._conn.write(
                 bytes.fromhex('FE  C0') +
-                animation_id.to_bytes(1, 'big') +
-                fileName.encode('ascii') + b'\0'
+                memory_id.to_bytes(1, 'big') +
+                file_name.encode('ascii') + b'\0'
             )
 
             self._receive_status_response(252, 192)
         finally:
             self._conn.timeout = prev_timeout
 
-        self.activate_animation(animation_instance, play)
-
-    def activate_animation(self, animation_instance: int, play=True):
+    def activate_animation(self, display_id: IdType, play=True):
         """
-        :param animation_instance: index used to identify this animation instance in the animation list
+        :param display_id: used to identify this animation instance in the animation list
         :param play: desired animation state
         """
 
         self._conn.write(
             bytes.fromhex('FE  C2') +
-            animation_instance.to_bytes(1, 'big') +
+            display_id.to_bytes(1, 'big') +
             play.to_bytes(1, 'big')
         )
 
-    def set_animation_frame(self, animation_instance: int, frame: int):
+    def load_and_play_animation(self, memory_id: IdType, display_id: IdType, x_pos: int, y_pos: int,
+                                file_name: str):
+        """Define a region of the screen to be used for the specified animation. If an animation is already in use
+        at that index, it will be overwritten. Multiple Animation Instances can be setup from one buffered animation
+        file.
+        :param memory_id: where an animation file has been loaded. If a string is supplied, it will be mapped
+        to an integer and the mapping will be stored in the instance.
+        :param display_id: index used to identify this animation instance in the animation list.
+        :param x_pos: the distance from the left edge of the screen in pixels
+        :param y_pos: the distance from the top edge of the screen in pixels
+        :param file_name: filename, and path from the root folder, of the animation file to load.
+        """
+        # For Andrew TODO
+        # memory_id = 'Hello'
+        memory_id = self._resolve_id(memory_id, new=True)
+
+        # Setup Animation
+        self.setup_animation(memory_id, display_id, x_pos, y_pos)
+
+        # Load Animation
+        self.load_animation(memory_id, file_name)
+
+        # Activate Animation
+        self.activate_animation(display_id)
+
+    def set_animation_frame(self, display_id: IdType, frame: int):
         """Set the current frame of a displayed animation. If the frame exceeds the total number present, the animation
-        will be set to the first frame.
-        :param animation_instance: index used to identify this animation instance in the animation list
-        :param frame: Number of the frame to be displayed. Needs to be less that actual amount ex: input 7 for 8 photos
-        :animation must be loaded and stopped before setting frame
+        will be set to the first frame. Animation must be loaded and stopped before setting frame.
+        :param display_id: used to identify this animation instance in the animation list
+        :param frame: Number of the frame to be displayed. Frame is zero-based. Needs to be less that actual amount
+        ex: input 7 for 8 photos
         """
 
         self._conn.write(
             bytes.fromhex('FE  C3') +
-            animation_instance.to_bytes(1, 'big') +
+            display_id.to_bytes(1, 'big') +
             frame.to_bytes(1, 'big')
         )
 
-    def get_animation_frame(self, animation_instance: int):
+    def get_animation_frame(self, display_id: IdType):
         """Gets the current frame of an existing animation instance
-        :param animation_instance: index used to identify this animation instance in the animation list
+        :param display_id: used to identify this animation instance in the animation list
         """
 
         self._conn.write(
             bytes.fromhex('FE  C4') +
-            animation_instance.to_bytes(1, 'big')
+            display_id.to_bytes(1, 'big')
         )
-        response = self._conn.read(6)
-        response = response[4]
-        return response
-        # self._receive_status_response(252, 196)
+        response = self._receive_query_response(252, 196)
+        return int.from_bytes(response, 'big')
+        #
 
     def stop_all_animation(self):
-        """Stops all currently running animation instances at their present frame
-        """
+        """Stops all currently running animation instances at their present frame"""
         self._conn.write(
             bytes.fromhex('FE  C6')
         )
 
     def resume_all_animation(self):
-        """Resumes all stopped animation instances from their present frame.
-        """
+        """Resumes all stopped animation instances from their present frame."""
         self._conn.write(
             bytes.fromhex('FE  C9')
         )
