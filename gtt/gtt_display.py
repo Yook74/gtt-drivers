@@ -1,9 +1,8 @@
-from typing import Dict, Set, Union
-
-import serial
+from typing import Dict, Set, Union, Callable
 
 from gtt.enums import *
 from gtt.byte_formatting import *
+from gtt.connection import GttConnection
 from gtt.exceptions import UnexpectedResponse, StatusError, OutOfIdsError
 
 ID_MAX = 0xff
@@ -14,10 +13,10 @@ IdType = Union[int, str]
 class GttDisplay:
     def __init__(self, port: str):
         """:param port: a serial port like COM3 or /dev/ttyUSB0"""
-        self._conn = serial.Serial(port, baudrate=115200, rtscts=True, timeout=0.5)
+        self._conn = GttConnection(port)
 
         self._conn.write(b'\xfe\x03')
-        info_bytes = self._receive_query_response(252, 3)
+        info_bytes = self._conn.get_response_payload(3)
 
         self.width: int = int.from_bytes(info_bytes[:2], 'big')
         """The height of this display in pixels"""
@@ -86,52 +85,9 @@ class GttDisplay:
             else:
                 return unresolved_id
 
-    def _receive_status_response(self, *header_ints: int):
-        """For some commands, the GTT will respond with a few header bytes followed by a length short
-        and finally one or more status bytes.
-        This method tries to receive those header bytes and then raises an exception if the status bytes are not happy.
-
-        :param header_ints: An exception will be raised if the response does not start with these bytes.
-        """
-        status_bytes = self._receive_query_response(*header_ints)
-        status_codes = [byte for byte in status_bytes]
-
-        if any(code != 0xfe for code in status_codes):
-            raise StatusError(*status_codes)
-
-    def _receive_query_response(self, *header_ints) -> bytes:
-        """Receives the response of a query command which are a few header bytes, a length short, and then a payload.
-
-        :param header_ints: An exception will be raised if the response does not start with these bytes.
-        :return: the payload as bytes for the message.
-        """
-        expected_str = ''
-        received_str = ''
-
-        for expected_int in header_ints:
-            response = self._conn.read(1)
-            received_int = int.from_bytes(response, byteorder='big')
-
-            expected_str += f'{expected_int:d} '
-            received_str += f'{received_int:d} '
-
-            if response == b'':
-                raise TimeoutError('Timed out when receiving a response')
-
-            if received_int != expected_int:
-                raise UnexpectedResponse(f'Expected response starting with {expected_str} but got {received_str}')
-
-        payload_len = self._conn.read(2)
-        if payload_len == b'':
-            raise UnexpectedResponse('Expected a length byte but got nothing')
-
-        payload_len = int.from_bytes(payload_len, 'big')
-        recv = self._conn.read(payload_len)
-
-        if len(recv) != payload_len:
-            raise UnexpectedResponse(f'Expected {payload_len} bytes in response but only got {len(recv)}')
-
-        return recv
+    def close(self):
+        """Must be called to clean up gracefully"""
+        self._conn.close()
 
     def clear_screen(self):
         """Clears everything on the screen and resets insertion cursors"""
@@ -179,7 +135,7 @@ class GttDisplay:
             ints_to_signed_shorts(value)
         )
 
-        self._receive_status_response(252, 105)
+        self._conn.check_status_response(105)
 
     def create_pixel(self, x_pos: int, y_pos: int):
         """Creates a single pixel in the position x and y. The default color is white.
@@ -276,7 +232,7 @@ class GttDisplay:
             hex_colors_to_bytes(fg_color_hex)
         )
 
-        self._receive_status_response(252, 21)
+        self._conn.check_status_response(21)
 
     def set_label_font_size(self, label_id: IdType, size: int):
         """Sets the font size of the label given by the label_id variable. Default font size doesn't support other
@@ -293,7 +249,7 @@ class GttDisplay:
             size.to_bytes(1, 'big')
         )
 
-        self._receive_status_response(252, 23)
+        self._conn.check_status_response(23)
 
     def set_label_background_color(self, label_id: IdType, bg_color_hex):
         """Sets the background color of an existing label by bg_color_hex
@@ -309,7 +265,7 @@ class GttDisplay:
             hex_colors_to_bytes(bg_color_hex)
         )
 
-        self._receive_status_response(252, 25)
+        self._conn.check_status_response(25)
 
     def load_font(self, font_id: IdType, file_name: str):
         """Loads a font file from the SD card into a font buffer for use.
@@ -327,7 +283,7 @@ class GttDisplay:
             file_name.encode('ascii') + b'\0'
         )
 
-        self._receive_status_response(252, 40)
+        self._conn.check_status_response(40)
 
     def load_bitmap(self, bitmap_id: IdType, file_name: str):
         """Loads a bitmap file from the SD card into a bitmap buffer for use. File must be the same height and width as
@@ -345,7 +301,7 @@ class GttDisplay:
             file_name.encode() + b'\0'
         )
 
-        self._receive_status_response(252, 95)
+        self._conn.check_status_response(95)
 
     def display_bitmap(self, bitmap_id: IdType, x_pos: int, y_pos: int):
         """Displays a bitmap image on the screen, from the bitmap buffer. File must be the same height and width as the
@@ -365,7 +321,7 @@ class GttDisplay:
             ints_to_signed_shorts(x_pos, y_pos)
         )
 
-        self._receive_status_response(252, 97)
+        self._conn.check_status_response(97)
 
     def load_and_display_bitmap(self, bitmap_id: IdType, file_name: str, x_pos: int, y_pos: int, ):
         """Loads a bitmap file from the SD card into a bitmap buffer for use. File must be the same height and width as
@@ -394,11 +350,9 @@ class GttDisplay:
             bytes.fromhex('FE 62') +
             bitmap_id.to_bytes(1, 'big') +
             hex_colors_to_bytes(fg_color_hex)
-        )
+        ) # TODO @Yook74 appears to have no affect
 
-        self._receive_status_response(252, 98)
-        # For Andrew TODO
-        # Transparency
+        self._conn.check_status_response(98)
 
     def initialize_trace(self, trace_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
                          max_value: int, value: int, step=1, min_value=0,
@@ -455,25 +409,28 @@ class GttDisplay:
             ints_to_signed_shorts(value)
         )
 
-    def create_touch_region(self, region_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
-                            up_bitmap_id: IdType, down_bitmap_id: IdType):
+    def create_button(self, region_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
+                      up_bitmap_id: IdType, down_bitmap_id: IdType, callback: Callable):
         """Create a region of the screen that responds to touch events with a unique message and momentary visual update
-        :param region_id: used to identify this touch region in the touch region list. Region 255 is reserved for
-        out of region responses. If a string is supplied, it will be mapped to an integer and the mapping will be stored
-        in the instance.
+
+        :param region_id: a string or integer to uniquely identify this button
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
-        :param width: width of the touch region
-        :param height: height of the touch region
-        :param up_bitmap_id: index of the loaded bitmap displayed when the region is released
+        :param width: width of the touch region in pixels
+        :param height: height of the touch region in pixels
+        :param up_bitmap_id: index of the loaded bitmap displayed when the region is not touched (released)
         :param down_bitmap_id: index of the loaded bitmap displayed when the region is touched
+        :param callback: This function will be called (in a seperate thread) when the button is pressed
         """
-
         self._validate_x(x_pos, x_pos + width - 1)
         self._validate_y(y_pos, y_pos + height - 1)
+
         region_id = self._resolve_id(region_id, new=True)
         up_bitmap_id = self._resolve_id(up_bitmap_id)
         down_bitmap_id = self._resolve_id(down_bitmap_id)
+
+        self._conn.touch_callback_dict[region_id] = callback
+
         self._conn.write(
             bytes.fromhex('FE 84') +
             region_id.to_bytes(1, 'big') +
@@ -483,32 +440,27 @@ class GttDisplay:
             down_bitmap_id.to_bytes(1, 'big')
         )
 
-        # For Andrew TODO
-        # 0x04 is associated to region_id
-        # response = self._conn.read(6)  # binary value
-        # if response == b'\xfc\x87\x00\x02\x00\x04':
-        #     print('Contact was made')
+    def create_toggle(self, region_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
+                      off_bitmap_id: IdType, on_bitmap_id: IdType, callback: Callable):
+        """Creates a region of the screen that switched between two bitmaps and invokes a callback when touched
 
-    def create_toggle_region(self, region_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
-                             off_bitmap_id: IdType, on_bitmap_id: IdType):
-        """Create a region of the screen that responds to touch events with a unique message and toggleable visual
-        update
-        :param region_id: used to identify this touch region in the touch region list. Region 255 is reserved for
-        out of region responses. If a string is supplied, it will be mapped to an integer and the mapping will be stored
-        in the instance.
+        :param region_id: A unique string or integer ID for this toggle
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
-        :param width: width of the touch region
-        :param height: height of the touch region
+        :param width: width of the touch region in pixels
+        :param height: height of the touch region in pixels
         :param off_bitmap_id: index of the loaded bitmap displayed when the region is in an inactive state
         :param on_bitmap_id: index of the loaded bitmap displayed when the region is in a toggled state
         """
-
         self._validate_x(x_pos, x_pos + width - 1)
         self._validate_y(y_pos, y_pos + height - 1)
+
         region_id = self._resolve_id(region_id, new=True)
         on_bitmap_id = self._resolve_id(on_bitmap_id)
         off_bitmap_id = self._resolve_id(off_bitmap_id)
+
+        self._conn.touch_callback_dict[region_id] = callback
+
         self._conn.write(
             bytes.fromhex('FE  96') +
             region_id.to_bytes(1, 'big') +
@@ -518,11 +470,7 @@ class GttDisplay:
             on_bitmap_id.to_bytes(1, 'big')
         )
 
-        self._receive_status_response(252, 150)
-
-        # For Andrew TODO
-        # 0x04 is associated to region_id
-        # if response == b'\xfc\x87\x00\x02\x00\x04':
+        self._conn.check_status_response(150)
 
     def set_gpo_state(self, pin: int, state: bool):
         """Set the specified General Purpose Output pin on or off. Sourcing up to 15mA of current at 5V per pin or
@@ -559,18 +507,14 @@ class GttDisplay:
         :param file_name: filename, and path from the root folder, of the animation file to load.
         """
         memory_id = self._resolve_id(memory_id)
-        prev_timeout = self._conn.timeout
-        self._conn.timeout = 5
-        try:
-            self._conn.write(
-                bytes.fromhex('FE  C0') +
-                memory_id.to_bytes(1, 'big') +
-                file_name.encode('ascii') + b'\0'
-            )
 
-            self._receive_status_response(252, 192)
-        finally:
-            self._conn.timeout = prev_timeout
+        self._conn.write(
+            bytes.fromhex('FE C0') +
+            memory_id.to_bytes(1, 'big') +
+            file_name.encode('ascii') + b'\0'
+        )
+
+        self._conn.check_status_response(192, timeout=5)
 
     def activate_animation(self, display_id: IdType, play=True):
         """
@@ -632,9 +576,8 @@ class GttDisplay:
             bytes.fromhex('FE  C4') +
             display_id.to_bytes(1, 'big')
         )
-        response = self._receive_query_response(252, 196)
+        response = self._conn.check_status_response(196)
         return int.from_bytes(response, 'big')
-        #
 
     def stop_all_animation(self):
         """Stops all currently running animation instances at their present frame"""
