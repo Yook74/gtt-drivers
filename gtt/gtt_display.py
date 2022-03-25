@@ -48,6 +48,13 @@ class GttDisplay:
             if y_value >= self.height:
                 raise ValueError('These arguments would result in an y value which is past the bottom of the screen')
 
+    def _pick_new_id(self) -> int:
+        for integer in range(ID_MAX, 0, -1):
+            if integer not in self.ids_in_use:
+                return integer
+
+        raise OutOfIdsError('Cannot assign a new integer ID because all possible IDs are in use')
+
     def _resolve_id(self, unresolved_id: IdType, new=False) -> int:
         """Takes a string specified by the user, validates it, and converts it to an integer if necessary
 
@@ -63,12 +70,10 @@ class GttDisplay:
                 raise ValueError(f'The ID you specified ({unresolved_id}) for a new component is already in use')
 
             elif isinstance(unresolved_id, str):
-                for integer in range(ID_MAX, 0, -1):
-                    if integer not in self.ids_in_use:
-                        self.ids_in_use.add(integer)
-                        self._id_map[unresolved_id] = integer
-                        return integer
-                raise OutOfIdsError('Cannot assign a new integer ID because all possible IDs are in use')
+                int_id = self._pick_new_id()
+                self.ids_in_use.add(int_id)
+                self._id_map[unresolved_id] = int_id
+                return int_id
 
             else:
                 if unresolved_id < 0 or unresolved_id > ID_MAX:
@@ -584,11 +589,11 @@ class GttDisplay:
             play.to_bytes(1, 'big')
         )
 
-    def load_and_play_animation(self, memory_id: IdType, display_id: IdType, x_pos: int, y_pos: int,
+    def load_and_play_animation(self, display_id: IdType, x_pos: int, y_pos: int,
                                 file_name: str):
-        """Define a region of the screen to be used for the specified animation. If an animation is already in use
-        at that index, it will be overwritten. Multiple Animation Instances can be setup from one buffered animation
-        file.
+        """Loads an animation from disk and plays it on the screen in the given position.
+        See :meth:`load_animation`, :meth:`setup_animation`, and :meth:`activate_animation` for more details
+
         :param memory_id: where an animation file has been loaded. If a string is supplied, it will be mapped
         to an integer and the mapping will be stored in the instance.
         :param display_id: index used to identify this animation instance in the animation list.
@@ -596,17 +601,10 @@ class GttDisplay:
         :param y_pos: the distance from the top edge of the screen in pixels
         :param file_name: filename, and path from the root folder, of the animation file to load.
         """
-        # For Andrew TODO
-        # memory_id = 'Hello'
-        memory_id = self._resolve_id(memory_id, new=True)
+        memory_id = self._pick_new_id()
 
-        # Setup Animation
-        self.setup_animation(memory_id, display_id, x_pos, y_pos)
-
-        # Load Animation
         self.load_animation(memory_id, file_name)
-
-        # Activate Animation
+        self.setup_animation(memory_id, display_id, x_pos, y_pos)
         self.activate_animation(display_id)
 
     def set_animation_frame(self, display_id: IdType, frame: int):
