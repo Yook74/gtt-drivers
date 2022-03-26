@@ -46,19 +46,18 @@ class GttConnection(Serial):
         if first_byte[0] != 252:
             raise UnexpectedResponse(f'Got message that starts with {first_byte[0]} instad of 252.')
 
-        message = GttMessage()
-        message.response_code = self.read(1)[0]
+        response_code = self.read(1)[0]
 
         payload_len = self.read(2)
         payload_len = int.from_bytes(payload_len, 'big', signed=False)
-        message.payload = self.read(payload_len)
+        payload = self.read(payload_len)
 
-        if message.response_code == 135:
-            touch_id = message.payload[1]
+        if response_code == 135:
+            touch_id = payload[1]
             if touch_id in self.touch_callback_dict:
                 self.touch_callback_dict[touch_id]()
         else:
-            self.message_queue.put(message)
+            self.message_queue.put(GttMessage(response_code, payload))
 
     def check_status_response(self, response_code: int, timeout=1):
         """For some commands, the GTT will respond with 252, a response_code, a length short
@@ -68,7 +67,7 @@ class GttConnection(Serial):
         :param response_code: An exception will be raised if the second byte of the response does not match this value
         :param timeout: How long (in seconds) should we wait to get the response?
         """
-        status_bytes = get_response_payload(reponse_code, timeout)
+        status_bytes = self.get_response_payload(response_code, timeout)
         status_codes = [byte for byte in status_bytes]
 
         if any(code != 0xfe for code in status_codes):
