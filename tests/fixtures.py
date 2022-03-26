@@ -26,7 +26,8 @@ def display(pytestconfig, monkeypatch):
     monkeypatch.setattr(serial, 'Serial', MonitoredSerialConn)
     display = GttDisplay('/dev/ttyUSB0')
     display.clear_screen()
-    return display
+    yield display
+    display.close()
 
 
 class ManualVerifyFailure(Exception):
