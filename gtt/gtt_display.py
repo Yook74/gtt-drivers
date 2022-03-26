@@ -142,6 +142,12 @@ class GttDisplay:
         """Clears everything on the screen and resets insertion cursors"""
         self._conn.write(bytes.fromhex('FE 58'))
 
+    def enter_mass_storage_mode(self):
+        """Allows the USB host to transfer files to the display via a separate USB cable.
+        Rebooting seems to be the only way to get the display out of this mode
+        """
+        self._conn.write(bytes.fromhex('FE 04'))
+
     def create_plain_bar(self, bar_id: IdType, value: int, max_value: int,
                          x_pos: int, y_pos: int, width: int, height: int,
                          min_value: int = 0, fg_color_hex='FFFFFF', bg_color_hex='000000',
