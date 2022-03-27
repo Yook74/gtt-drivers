@@ -393,23 +393,22 @@ class GttDisplay:
         # Display Bitmap
         self.display_bitmap(bitmap_id, x_pos, y_pos)
 
-    def set_bitmap_transparency(self, bitmap_id: IdType, fg_color_hex='FFFFFF'):
-        """Set the transparent color for all future renderings of a specific bitmap index. Does not affect previously
-        drawn versions of the specified bitmap
-        :param bitmap_id: used to identify the desired file in the bitmap buffer. If a string is
-        supplied, it will be mapped to an integer and the mapping will be stored in the instance.
-        :param fg_color_hex: Intensity of the color, limited to display metrics.
+    def set_bitmap_transparency(self, bitmap_id: IdType, transparent_color_hex: str):
+        """Map a color on the bitmap to transparency.
+        Does not affect previously drawn versions of the specified bitmap.
+
+        :param bitmap_id: A unique string or integer used to identify the bitmap loaded in memory.
+        :param transparent_color_hex: If your bitmap has a white background but you want it to be transparent,
+            set this to 'FFFFFF'.
         """
         bitmap_id = self._resolve_id(bitmap_id)
         self._conn.write(
             bytes.fromhex('FE 62') +
             bitmap_id.to_bytes(1, 'big') +
-            hex_colors_to_bytes(fg_color_hex)
+            hex_colors_to_bytes(transparent_color_hex)
         )
 
         self._receive_status_response(252, 98)
-        # For Andrew TODO
-        # Transparency
 
     def initialize_trace(self, trace_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
                          max_value: int, value: int, step=1, min_value=0,
