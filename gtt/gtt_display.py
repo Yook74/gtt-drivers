@@ -197,10 +197,15 @@ class GttDisplay:
 
         self._receive_status_response(252, 105)
 
-    def create_pixel(self, x_pos: int, y_pos: int):
-        """Creates a single pixel in the position x and y. The default color is white.
-        :param x_pos: the distance from the left edge of the screen in pixel
-        :param y_pos: the distance from the top edge of the screen in pixel
+    def set_drawing_color(self, hex_color: str):
+        """Sets the hex color which is used for drawing things like pixels and rectangles"""
+        self._conn.write(bytes.fromhex('FE 63') + hex_colors_to_bytes(hex_color))
+
+    def draw_pixel(self, x_pos: int, y_pos: int):
+        """Draws a single pixel. The color can be set by calling set_drawing_color.
+
+        :param x_pos: the distance from the left edge of the screen in pixels
+        :param y_pos: the distance from the top edge of the screen in pixels
         """
 
         self._validate_x(x_pos)
