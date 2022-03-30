@@ -17,6 +17,7 @@ class GttDisplay:
     The display does not allow string IDs for components, but you can specify string IDs to the methods in this class
     and they will be mapped to integers automatically.
     """
+
     def __init__(self, port: str):
         """:param port: a serial port like COM3 or /dev/ttyUSB0"""
         self._conn = serial.Serial(port, baudrate=115200, rtscts=True, timeout=0.5)
@@ -377,7 +378,7 @@ class GttDisplay:
 
         self._receive_status_response(252, 97)
 
-    def load_and_display_bitmap(self, file_path: str, x_pos: int, y_pos: int, ):
+    def load_and_display_bitmap(self, file_path: str, x_pos: int, y_pos: int):
         """Loads the bitmap image at `file_path` and displays it at the given position"""
         bitmap_id = self._pick_new_id()
 
@@ -552,8 +553,8 @@ class GttDisplay:
 
         self._conn.write(
             bytes.fromhex('FE C1') +
-            memory_id.to_bytes(1, 'big') +
             display_id.to_bytes(1, 'big') +
+            memory_id.to_bytes(1, 'big') +
             ints_to_signed_shorts(x_pos, y_pos)
         )
 
@@ -569,12 +570,12 @@ class GttDisplay:
         :param memory_id: a unique string or integer used to refer to the animation in memory.
         :param file_path: The path and filename of the animation text file using backslashes.
         """
-        memory_id = self._resolve_id(memory_id)
+        memory_id = self._resolve_id(memory_id, new=True)
         prev_timeout = self._conn.timeout
         self._conn.timeout = 5
         try:
             self._conn.write(
-                bytes.fromhex('FE  C0') +
+                bytes.fromhex('FE C0') +
                 memory_id.to_bytes(1, 'big') +
                 file_path.encode('ascii') + b'\0'
             )
@@ -589,8 +590,9 @@ class GttDisplay:
         :param display_id: used to identify this animation instance in the animation list.
         :param play: set to `False` to stop and or `True` to play.
         """
+        display_id = self._resolve_id(display_id)
         self._conn.write(
-            bytes.fromhex('FE  C2') +
+            bytes.fromhex('FE C2') +
             display_id.to_bytes(1, 'big') +
             play.to_bytes(1, 'big')
         )
@@ -607,7 +609,7 @@ class GttDisplay:
         memory_id = self._pick_new_id()
 
         self.load_animation(memory_id, file_path)
-        self.setup_animation(memory_id, display_id, x_pos, y_pos)
+        self.setup_animation(display_id, memory_id, x_pos, y_pos)
         self.activate_animation(display_id)
 
     def set_animation_frame(self, display_id: IdType, frame: int):
@@ -645,3 +647,7 @@ class GttDisplay:
     def resume_all_animations(self):
         """Resumes all stopped animation instances from their present frame."""
         self._conn.write(bytes.fromhex('FE C9'))
+
+    def clear_animations(self):
+        """Clears all animations on the screen"""
+        self._conn.write(bytes.fromhex('FE C8'))
