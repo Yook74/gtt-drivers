@@ -24,9 +24,12 @@ class MonitoredSerialConn(serial.Serial):
 @pytest.fixture
 def display(pytestconfig, monkeypatch):
     monkeypatch.setattr(serial, 'Serial', MonitoredSerialConn)
-    display = GttDisplay('/dev/ttyUSB0')
+    display = GttDisplay('COM12')
     display.clear_screen()
-    return display
+    display.clear_buffers()
+    display.clear_animations()
+    yield display
+    display._conn.close()
 
 
 class ManualVerifyFailure(Exception):

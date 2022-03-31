@@ -651,3 +651,8 @@ class GttDisplay:
     def clear_animations(self):
         """Clears all animations on the screen"""
         self._conn.write(bytes.fromhex('FE C8'))
+
+    def clear_buffers(self):
+        """Clears all animations on the screen"""
+        self._conn.write(bytes.fromhex('FE D1'))
+

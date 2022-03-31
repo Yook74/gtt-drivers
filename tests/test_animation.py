@@ -3,22 +3,17 @@ from gtt.exceptions import StatusError
 from tests.fixtures import *
 
 
-def test_setup_animation(display: GttDisplay, cli_verify):
+def test_load_setup_animation(display: GttDisplay, cli_verify):
     display.load_animation(memory_id=1, file_path='\\Megaman\\Megaman_Running.txt')
     display.setup_animation(display_id=2, memory_id=1, x_pos=0, y_pos=0)
     cli_verify('nothing will happen, the screen will be black(Megaman)')
-
-
-def test_load_animation(display: GttDisplay, cli_verify):
-    display.load_animation(memory_id=1, file_path='\\Megaman\\Megaman_Running.txt')
-    cli_verify('nothing will happen, the screen will be black and the file is loaded(Megaman)')
 
 
 def test_activate_animation(display: GttDisplay, cli_verify):
     display.load_animation(memory_id=1, file_path='\\Megaman\\Megaman_Running.txt')
     display.setup_animation(display_id=2, memory_id=1, x_pos=0, y_pos=0)
     display.activate_animation(display_id=2)
-    cli_verify('an megaman animation will display on the the whole screen')
+    cli_verify('a megaman animation will display on the the whole screen')
 
 
 def test_load_and_play_animation(display: GttDisplay, cli_verify):
@@ -63,5 +58,4 @@ def test_invalid_animation(display: GttDisplay):
             display.load_and_play_animation(**kwargs)
 
 
-def test_clear_animation(display: GttDisplay):
-    display.clear_animations()
+

@@ -22,9 +22,9 @@ def test_load_and_display_bitmap(display: GttDisplay, cli_verify):
 
 def test_invalid_bitmap(display: GttDisplay):
     invalid_args = [
-        #dict(file_path=r'\nothing.bmp', x_pos=0, y_pos=0),
+        dict(file_path=r'\nothing.bmp', x_pos=0, y_pos=0),
         dict(file_path='feet', x_pos=0, y_pos=0),
-        #dict(file_path='', x_pos=0, y_pos=0)
+        dict(file_path='', x_pos=0, y_pos=0)
        ]
 
     for kwargs in invalid_args:
