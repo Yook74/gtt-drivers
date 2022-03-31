@@ -1,8 +1,0 @@
-10 \megaman\Mm1.jpg
-10 \megaman\Mm2.jpg
-10 \megaman\Mm3.jpg
-10 \megaman\Mm4.jpg
-10 \megaman\Mm5.jpg
-10 \megaman\Mm6.jpg
-10 \megaman\Mm7.jpg
-10 \megaman\Mm8.jpg
