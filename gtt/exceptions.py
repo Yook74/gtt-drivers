@@ -32,7 +32,7 @@ class StatusError(Exception):
     def __init__(self, *status_codes: int):
         message = f'The last command resulted in errors: '
         for status_code in status_codes:
-            error_desc = E_STATUS_CODE_VALUES.get(status_code, default='unknown code')
+            error_desc = E_STATUS_CODE_VALUES.get(status_code, 'unknown code')
             message += f'code {status_code:d}: "{error_desc}", '
 
         super().__init__(message)

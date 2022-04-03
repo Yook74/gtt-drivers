@@ -10,7 +10,7 @@ setup(
     description='A driver package for Matrix Orbital\'s GTT series of displays',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    author='Yook74',
+    author='Andrew Blomenberg and Logan Verstrate',
     author_email='andrewBlomen@gmail.com',
     url='https://github.com/Yook74/gtt-drivers',
     packages=['gtt'],
