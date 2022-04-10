@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, Enum
 
 
 class BarDirection(IntEnum):
@@ -27,17 +27,8 @@ class TraceType(IntEnum):
     BOX = 3
 
 
-class TraceOriginPosition(IntEnum):
-    TOP_RIGHT_DOWN = 0
-    BOTTOM_RIGHT = 16
-    BOTTOM_LEFT_UP = 32
-    TOP_LEFT = 48
-    TOP_LEFT_DOWN = 64
-    TOP_RIGHT = 80
-    BOTTOM_RIGHT_UP = 96
-    BOTTOM_LEFT = 112
-
-
-class TraceOriginShift(IntEnum):
-    TOWARD_ORIGIN = False
-    AWAY_FROM_ORIGIN = True
+class Direction(Enum):
+    DOWN = 0
+    UP = 1
+    LEFT = 2
+    RIGHT = 3

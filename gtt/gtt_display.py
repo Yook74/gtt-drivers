@@ -405,12 +405,12 @@ class GttDisplay:
     def clear_all_traces(self):
         self._conn.write(bytes.fromhex('FE 77'))
 
-    def initialize_trace(self, trace_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
-                         max_value: int, value: int, step=1, min_value=0,
-                         trace_origin_shift=False, fg_color_hex='FFFFFF',
-                         trace_type: TraceType = TraceType.LINE,
-                         trace_origin_pos: TraceOriginPosition = TraceOriginPosition.BOTTOM_LEFT,
-                         ):
+    def create_trace(self, trace_id: IdType, x_pos: int, y_pos: int, width: int, height: int,
+                     max_value: int, step=1, min_value=0,
+                     fg_color_hex='FFFFFF',
+                     trace_type: TraceType = TraceType.LINE,
+                     x_growth: Direction = Direction.RIGHT, y_growth: Direction = Direction.UP,
+                     justify_max=False):
         """Initialize a new graph trace. Upon execution of an update command, the trace region will be shifted by the
         step size, and a line or bar drawn between the previous value and the new one. Individual traces can be updated
         with the update_trace command. This has a transparent background and will show pixels and bitmaps images.
@@ -425,17 +425,29 @@ class GttDisplay:
         :param max_value: value displayed at the highest point of the trace
         :param step: Number of pixels shifted when a trace is updated.
         :param fg_color_hex: Intensity of the color, limited to display metrics.
-        :param value: current value of the specified trace.
         :param trace_type: value that defines what type of trace is use(Bar, Line, Step, Box)
-        :param trace_origin_pos: value that defines the origin position of the trace
-        :param trace_origin_shift: value that defines the orientation of the trace starting point
-            Trace_style is the sum of the trace_type, trace_origin_pos, and trace_origin_shift.
+        :param x_growth: When the trace increments along the x-axis, what direction should it grow?
+        :param y_growth: When the y value (the value of the trace) increases, which direction should it move?
+        :param justify_max: if set to True,
+            the trace will be justified to the max x value which is the right side by default.
         """
 
         self._validate_x(x_pos, x_pos + width - 1)
         self._validate_y(y_pos, y_pos + height - 1)
         trace_id = self._resolve_id(trace_id, new=True)
-        trace_style = trace_type + trace_origin_shift + trace_origin_pos
+
+        growth_map = {
+            Direction.RIGHT: {Direction.UP: 0, Direction.DOWN: 2, Direction.RIGHT: None, Direction.LEFT: None},
+            Direction.LEFT: {Direction.UP: 4, Direction.DOWN: 6, Direction.RIGHT: None, Direction.LEFT: None},
+            Direction.UP: {Direction.UP: None, Direction.DOWN: None, Direction.RIGHT: 1, Direction.LEFT: 3},
+            Direction.DOWN: {Direction.UP: None, Direction.DOWN: None, Direction.RIGHT: 5, Direction.LEFT: 7},
+        }
+
+        growth = growth_map[x_growth][y_growth]
+        if growth is None:
+            raise ValueError('Invalid combination of x_growth and y_growth')
+
+        trace_style = trace_type | growth << 4 | (not justify_max) << 7
 
         self._conn.write(
             bytes.fromhex('FE 74') +
@@ -445,9 +457,6 @@ class GttDisplay:
             trace_style.to_bytes(1, 'big') +
             hex_colors_to_bytes(fg_color_hex)
         )
-
-        # TODO Andrew TL&C for this poor method
-        self.update_trace(trace_id, value)
 
     def update_trace(self, trace_id: IdType, value: int):
         """Update the value of the trace given by `trace_id`"""
