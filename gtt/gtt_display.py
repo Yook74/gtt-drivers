@@ -4,7 +4,7 @@ import serial
 
 from gtt.enums import *
 from gtt.byte_formatting import *
-from gtt.exceptions import UnexpectedResponse, StatusError, OutOfIdsError
+from gtt.exceptions import *
 
 ID_MAX = 0xff
 
@@ -73,7 +73,7 @@ class GttDisplay:
 
         if new:
             if unresolved_id in self._id_map or unresolved_id in self.ids_in_use:
-                raise ValueError(f'The ID you specified ({unresolved_id}) for a new component is already in use')
+                raise IdConflictError(f'The ID you specified ({unresolved_id}) for a new component is already in use')
 
             elif isinstance(unresolved_id, str):
                 int_id = self._pick_new_id()

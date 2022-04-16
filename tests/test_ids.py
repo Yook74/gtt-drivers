@@ -52,8 +52,8 @@ def test_id_validation(display):
     display._resolve_id('fred', new=True)
     display._resolve_id(5, new=True)
 
-    with raises(ValueError):
+    with raises(IdConflictError):
         display._resolve_id('fred', new=True)
 
-    with raises(ValueError):
+    with raises(IdConflictError):
         display._resolve_id(5, new=True)

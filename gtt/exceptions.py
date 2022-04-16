@@ -44,3 +44,7 @@ class UnexpectedResponse(Exception):
 
 class OutOfIdsError(Exception):
     """Raised when there are too many existing components to assign a new ID"""
+
+
+class IdConflictError(Exception):
+    """Raised when an ID is already in use by another element"""
