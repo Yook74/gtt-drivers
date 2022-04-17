@@ -233,7 +233,7 @@ class GttDisplay:
         )
 
     def create_label(self, label_id: IdType, x_pos: int, y_pos: int, width: int, height: int, font_size: int,
-                     font: int = 0, rot=0, fg_color_hex='FFFFFF', bg_color_hex='000000', value: str = "Label",
+                     font_id: IdType = 0, rot=0, fg_color_hex='FFFFFF', bg_color_hex='000000', value: str = "Label",
                      vertical_just: FontAlignVertical = FontAlignVertical.TOP,
                      horizontal_just: FontAlignHorizontal = FontAlignHorizontal.LEFT):
         """Creates a text label which can be later updated with new text.
@@ -248,7 +248,7 @@ class GttDisplay:
         :param rot: the rotation (in degrees) of the text within the label.
         :param vertical_just: the vertical justification of text within the label
         :param horizontal_just: the horizontal justification of text within the label
-        :param font: the ID of a previously loaded font to be used for the label.
+        :param font_id: the ID of a previously loaded font to be used for the label.
             By default, there is a font loaded with ID 0
         :param fg_color_hex: a hex color string for the text of the label
         :param bg_color_hex: a hex color string for the background part of the label
@@ -260,13 +260,16 @@ class GttDisplay:
         self._validate_y(y_pos, y_pos + height - 1)
         label_id = self._resolve_id(label_id, new=True)
 
+        if font_id != 0:
+            font_id = self._resolve_id(font_id)
+
         self._conn.write(
             bytes.fromhex('FE 10') +
             label_id.to_bytes(1, 'big') +
             ints_to_signed_shorts(x_pos, y_pos, width, height, rot) +
             vertical_just.to_bytes(1, 'big') +
             horizontal_just.to_bytes(1, 'big') +
-            font.to_bytes(1, 'big') +
+            font_id.to_bytes(1, 'big') +
             hex_colors_to_bytes(fg_color_hex)
         )
 
