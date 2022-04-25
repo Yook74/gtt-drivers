@@ -216,19 +216,20 @@ class GttDisplay:
             ints_to_signed_shorts(x_pos, y_pos)
         )
 
-    def draw_rectangle(self, x_pos: int, y_pos: int, width: int, height: int):
-        """Draws an outlined rectangle
+    def draw_rectangle(self, x_pos: int, y_pos: int, width: int, height: int, fill=False):
+        """Draws a filled or outlined rectange
 
         :param x_pos: the distance from the left edge of the screen in pixels
         :param y_pos: the distance from the top edge of the screen in pixels
         :param width: the width of the rectangle in pixels
         :param height: the height of the rectangle in pixels
+        :param fill: if set to true, the rectangle will be filled
         """
 
         self._validate_x(x_pos, x_pos + width - 1)
         self._validate_y(y_pos, y_pos + height - 1)
         self._conn.write(
-            bytes.fromhex('FE 72') +
+            bytes.fromhex('FE 78' if fill else 'FE 72') +
             ints_to_signed_shorts(x_pos, y_pos, width, height)
         )
 
